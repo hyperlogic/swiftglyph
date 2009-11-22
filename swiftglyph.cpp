@@ -198,6 +198,7 @@ int main(int argc, char** argv)
 	delete [] rgbaBuffer;
 
 	char cmd[512];
+
 	int w = kGlyphTextureWidth;
 	int i = 0;
 	while (w >= 1)
@@ -212,7 +213,7 @@ int main(int argc, char** argv)
 		system("stream -map ia -storage-type char temp2.tga temp.raw");
 
 		// concat all the mip levels into a single binary file
-		sprintf(cmd, "cat temp.raw >> %s.raw", fontprefix.c_str());
+		sprintf(cmd, "cat temp.raw %s %s.raw", i == 0 ? ">" : ">>", fontprefix.c_str());
 		system(cmd);
 
 		w /= 2;
@@ -229,7 +230,7 @@ int main(int argc, char** argv)
 	for (int i = 0; i < kNumGlyphs; ++i)
 	{
 		fprintf(fp, "-\n");
-		fprintf(fp, "  index: %u\n", s_glyphInfo[i].ftGlyphIndex);
+		fprintf(fp, "  char_index: %u\n", s_glyphInfo[i].ftGlyphIndex);
 		fprintf(fp, "  bearing: [%f, %f]\n", s_glyphInfo[i].bearing.x, s_glyphInfo[i].bearing.y);
 		fprintf(fp, "  size: [%f, %f]\n", s_glyphInfo[i].size.x, s_glyphInfo[i].size.y);
 		fprintf(fp, "  upper_right: [%f, %f]\n", s_glyphInfo[i].texUpperRight.x, 
