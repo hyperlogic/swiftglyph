@@ -224,7 +224,8 @@ int main(int argc, char** argv)
 	sprintf(yamlFilename, "%s.yaml", fontprefix.c_str());
 	FILE* fp = fopen(yamlFilename, "w");
 	fprintf(fp, "# Font Metrics for %s\n", fontname.c_str());
-	fprintf(fp, "metrics:\n");
+	fprintf(fp, "texture_width: %d\n", textureWidth);
+	fprintf(fp, "glyph_metrics:\n");
 	for (int i = 0; i < kNumGlyphs; ++i)
 	{
 		fprintf(fp, "-\n");
