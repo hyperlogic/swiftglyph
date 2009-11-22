@@ -1,0 +1,14 @@
+BBQ.header do
+  struct GlyphMetrics do
+    uint32 char_index
+    fixed_array float, size, 2
+    fixed_array float, upper_right, 2
+    fixed_array float, lower_left, 2
+    fixed_array float, advance, 2
+  end
+  struct Font do
+    int32 texture_width
+    pointer uint8, texture
+    var_array GlyphMetrics, glyph_metrics_array
+  end
+end
