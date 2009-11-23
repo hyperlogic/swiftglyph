@@ -2,6 +2,7 @@ BBQ.header do
   struct GlyphMetrics do
     uint32 char_index
     fixed_array float, size, 2
+    fixed_array float, bearing, 2
     fixed_array float, upper_right, 2
     fixed_array float, lower_left, 2
     fixed_array float, advance, 2

@@ -2,6 +2,7 @@
 #include <math.h>
 #include "test.h"
 #include <SDL/SDL.h>
+#include <assert.h>
 
 #ifdef DARWIN
 #include <OpenGL/gl.h>
@@ -48,6 +49,12 @@ static GLuint s_checker_texture;
 static GLuint s_font_texture;
 
 struct Font* s_font = 0;
+
+#define TAB_SIZE 4
+#define START_GLYPH 32
+#define END_GLYPH 127
+#define NUM_GLYPHS (END_GLYPH - START_GLYPH)
+
 
 enum LoadFileToMemoryResult { CouldNotOpenFile = -1, CouldNotReadFile = -2 };
 static int LoadFileToMemory(const char *filename, unsigned char **result)
@@ -119,12 +126,150 @@ void FreeFont(struct Font* font)
 	bbq_free(font);
 }
 
+struct GlyphMetrics* FindGlyphMetrics(struct Font* font, char c)
+{
+	int i = c - START_GLYPH;
+
+	// if c is non-printable use '?'
+	if ((i < 0) || (i >= NUM_GLYPHS))
+		i = '?' - START_GLYPH;
+
+	return font->glyph_metrics_array + i;
+}
+
+void DrawGlyph(float pen_x, float pen_y, struct GlyphMetrics* glyph)
+{
+	assert(glyph);
+	// skip white-space glyphs
+	if (glyph->size[0] >= 0.0f && glyph->size[1] >= 0.0f)
+	{
+		// vertex coords
+		float w = glyph->size[0];
+		float h = glyph->size[1];
+		float ul[3];
+		ul[0] = pen_x + glyph->bearing[0];
+		ul[1] = pen_y + glyph->bearing[1];
+		ul[2] = 0;
+
+		float v0[3];
+		v0[0] = ul[0] + w;
+		v0[1] = ul[1];
+		v0[2] = ul[2];
+
+		float v1[3];
+		v1[0] = ul[0];
+		v1[1] = ul[1];
+		v1[2] = ul[2];
+
+		float v2[3];
+		v2[0] = ul[0];
+		v2[1] = ul[1] - h;
+		v2[2] = ul[2];
+
+		float v3[3];
+		v3[0] = ul[0] + w;
+		v3[1] = ul[1] - h;
+		v3[2] = ul[2];
+	
+		// texture coords
+		float uv0[2];
+		uv0[0] = glyph->upper_right[0];
+		uv0[1] = glyph->upper_right[1];
+
+		float uv1[2];
+		uv1[0] = glyph->lower_left[0];
+		uv1[1] = glyph->upper_right[1];
+
+		float uv2[2];
+		uv2[0] = glyph->lower_left[0];
+		uv2[1] = glyph->lower_left[1];
+
+		float uv3[2];
+		uv3[0] = glyph->upper_right[0];
+		uv3[1] = glyph->lower_left[1];
+
+		glMultiTexCoord2fv(0, uv0);
+		glVertex3fv(v0);
+
+		glMultiTexCoord2fv(0, uv1);
+		glVertex3fv(v1);
+
+		glMultiTexCoord2fv(0, uv2);
+		glVertex3fv(v2);
+
+		glMultiTexCoord2fv(0, uv3);
+		glVertex3fv(v3);
+	}
+}
+
+void DrawString(struct Font* font, const char* str)
+{
+	int cursor = 0;
+	float pen_x = 0;
+	float pen_y = 0;
+
+	glBegin(GL_QUADS);
+	const char* p;
+	for (p = str; *p; ++p)
+	{
+		if (*p == '\n')
+		{
+			// TODO: add line height to metrics
+			// return FIXED_TO_FLOAT(m_face->size->metrics.height);
+
+			// move the pen down by height, and reset x to zero
+			pen_x = 0;
+			//pen_y -= font->line_height;
+			cursor = 0;
+		}
+		else if (*p == 9)  // TAB
+		{
+			int numSpaces = TAB_SIZE - (cursor % TAB_SIZE);
+			struct GlyphMetrics* curr = FindGlyphMetrics(font, ' ');
+			int i;
+			for (i = 0; i < numSpaces; ++i)
+			{				
+				DrawGlyph(pen_x, pen_y, curr);
+				pen_x += curr->advance[0];
+				pen_y += curr->advance[1];
+				cursor++;
+			}
+		}
+		else
+		{
+			struct GlyphMetrics* curr = FindGlyphMetrics(font, *p);
+			DrawGlyph(pen_x, pen_y, curr);
+
+			float kerning_x = 0;
+			float kerning_y = 0;
+			// TODO: look up in kerning table
+			/*
+			if (!isspace(*(p+1)))
+			{
+				GlyphInfo* next = GetGlyphInfo(*(p+1));
+				FT_Vector ftKerning;
+				FT_Get_Kerning(m_face, curr->ftGlyphIndex, next->ftGlyphIndex, 
+							   FT_KERNING_UNFITTED, &ftKerning);
+				kerning.Set(FIXED_TO_FLOAT(ftKerning.x), FIXED_TO_FLOAT(ftKerning.y));
+			}
+			*/
+
+			// advance the pen
+			pen_x += curr->advance[0] + kerning_x;
+			pen_y += curr->advance[1] + kerning_y;
+			cursor++;
+		}
+	}
+	glEnd();
+}
+
 void RenderInit()
 {
 	// set up projection matrix
 	glMatrixMode(GL_PROJECTION);
-	glOrtho(1.0, -1.0, -1.0, 1.0, 1.0, -1.0);
+	glOrtho(100.0, -100.0, -100.0, 100.0, 1.0, -1.0);
 	glMatrixMode(GL_MODELVIEW);
+	glRotatef(180.0,0,1,0);
 
 	// setup the checker board texture
 	glEnable(GL_TEXTURE_2D);
@@ -167,6 +312,7 @@ void Render()
 	}
 	glEnd();
 
+	/*
 	// display font texture
 	uvs = s_quad_uvs;
 	verts = s_quad_verts;
@@ -179,6 +325,10 @@ void Render()
 		glVertex3fv(verts); verts += 3;
 	}
 	glEnd();
+	*/
+
+	glBindTexture(GL_TEXTURE_2D, s_font_texture);
+	DrawString(s_font, "hello WoRld!");
 
 	SDL_GL_SwapBuffers();
 }
@@ -220,6 +370,8 @@ int main(int argc, char* argv[])
 		if (!done)
 			Render();
 	}
+
+	FreeFont(s_font);
 
 	return 0;
 }
