@@ -16,17 +16,18 @@
 #include "bbq.h"
 #include "font.h"
 
-const unsigned int white = 0xffffffff;
-const unsigned int black = 0;
-static unsigned int s_texture_data[] = { 
-	white, white, white, white, black, black, black, black,
-	white, white, white, white, black, black, black, black,
-	white, white, white, white, black, black, black, black,
-	white, white, white, white, black, black, black, black,
-	black, black, black, black, white, white, white, white, 
-	black, black, black, black, white, white, white, white, 
-	black, black, black, black, white, white, white, white, 
-	black, black, black, black, white, white, white, white 
+// checker boards are cool!
+#define WHITE 0xffffffff
+#define BLACK 0xff000000
+static unsigned int s_checker_texture_data[] = { 
+	WHITE, WHITE, WHITE, WHITE, BLACK, BLACK, BLACK, BLACK,
+	WHITE, WHITE, WHITE, WHITE, BLACK, BLACK, BLACK, BLACK,
+	WHITE, WHITE, WHITE, WHITE, BLACK, BLACK, BLACK, BLACK,
+	WHITE, WHITE, WHITE, WHITE, BLACK, BLACK, BLACK, BLACK,
+	BLACK, BLACK, BLACK, BLACK, WHITE, WHITE, WHITE, WHITE, 
+	BLACK, BLACK, BLACK, BLACK, WHITE, WHITE, WHITE, WHITE, 
+	BLACK, BLACK, BLACK, BLACK, WHITE, WHITE, WHITE, WHITE, 
+	BLACK, BLACK, BLACK, BLACK, WHITE, WHITE, WHITE, WHITE 
 };
 
 static float s_quad_verts[] = {
@@ -43,7 +44,8 @@ static float s_quad_uvs[] = {
 	0.0f, 1.0f
 };
 
-static GLuint s_texture;
+static GLuint s_checker_texture;
+static GLuint s_font_texture;
 
 void RenderInit()
 {
@@ -52,25 +54,23 @@ void RenderInit()
 	glOrtho(1.0, -1.0, -1.0, 1.0, 1.0, -1.0);
 	glMatrixMode(GL_MODELVIEW);
 
-/*
-	// setup the static texture
+	// setup the checker board texture
 	glEnable(GL_TEXTURE_2D);
-	glGenTextures(1, &s_texture);
-	glBindTexture(GL_TEXTURE_2D, s_texture);
+	glGenTextures(1, &s_checker_texture);
+	glBindTexture(GL_TEXTURE_2D, s_checker_texture);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	glTexImage2D(GL_TEXTURE_2D, 0, 4, 8, 8, 0, GL_RGBA, GL_UNSIGNED_BYTE, s_texture_data);
-*/
+	glTexImage2D(GL_TEXTURE_2D, 0, 4, 8, 8, 
+				 0, GL_RGBA, GL_UNSIGNED_BYTE, s_checker_texture_data);
 
-	Font* font = (Font*)bbq_load("FreeSans.bin");
+	// load the font
+	struct Font* font = (struct Font*)bbq_load("Inconsolata.bin");
 
-	// setup the static texture
-	glEnable(GL_TEXTURE_2D);
-	glGenTextures(1, &s_texture);
-	glBindTexture(GL_TEXTURE_2D, s_texture);
+	glGenTextures(1, &s_font_texture);
+	glBindTexture(GL_TEXTURE_2D, s_font_texture);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -92,21 +92,38 @@ void Render()
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	glBindTexture(GL_TEXTURE_2D, s_texture);
+	glDisable(GL_DEPTH_TEST);
+	
+	glDepthMask(GL_FALSE);
 
+
+	// display gray checker board
 	float* uvs = s_quad_uvs;
 	float* verts = s_quad_verts;
-
-	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-
+	glBindTexture(GL_TEXTURE_2D, s_checker_texture);
+	glColor4f(0.2f, 0.2f, 0.2f, 1.0f);
 	glBegin(GL_QUADS);
-
-	for (unsigned int i = 0; i < 4; i++)
+	unsigned int i;
+	for (i = 0; i < 4; i++)
 	{
 		glMultiTexCoord2fv(0, uvs); uvs += 2;
 		glVertex3fv(verts); verts += 3;
 	}
 	glEnd();
+
+	// display font texture
+	uvs = s_quad_uvs;
+	verts = s_quad_verts;
+	glBindTexture(GL_TEXTURE_2D, s_font_texture);
+	glColor4f(1,1,1,1);
+	glBegin(GL_QUADS);
+	for (i = 0; i < 4; i++)
+	{
+		glMultiTexCoord2fv(0, uvs); uvs += 2;
+		glVertex3fv(verts); verts += 3;
+	}
+	glEnd();
+
 
 	SDL_GL_SwapBuffers();
 }
@@ -126,7 +143,7 @@ int main(int argc, char* argv[])
 
 	RenderInit();
 
-	bool done = false;
+	int done = 0;
 	while (!done)
 	{
 		SDL_Event event;
@@ -135,7 +152,7 @@ int main(int argc, char* argv[])
 			switch (event.type)
 			{
 				case SDL_QUIT:
-					done = true;
+					done = 1;
 					break;
 
 				case SDL_VIDEORESIZE:
