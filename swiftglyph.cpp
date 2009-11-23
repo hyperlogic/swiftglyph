@@ -170,9 +170,9 @@ int main(int argc, char** argv)
 		float right = (float)(x + s_face->glyph->bitmap.width) / kGlyphTextureWidth;
 
 		s_glyphInfo[i].texLowerLeft.x = left;
-		s_glyphInfo[i].texLowerLeft.x = bottom;
+		s_glyphInfo[i].texLowerLeft.y = bottom;
 		s_glyphInfo[i].texUpperRight.x = right;
-		s_glyphInfo[i].texUpperRight.x = top;
+		s_glyphInfo[i].texUpperRight.y = top;
 
 		s_glyphInfo[i].advance.x = FIXED_TO_FLOAT(s_face->glyph->metrics.horiAdvance);
 		s_glyphInfo[i].advance.y = 0.0f;
