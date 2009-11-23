@@ -67,21 +67,31 @@ void RenderInit()
 				 0, GL_RGBA, GL_UNSIGNED_BYTE, s_checker_texture_data);
 
 	// load the font
-	struct Font* font = (struct Font*)bbq_load("Inconsolata.bin");
+//	struct Font* font = (struct Font*)bbq_load("Inconsolata.bin");
+	struct Font* font = (struct Font*)bbq_load("FreeSans.bin");
 
 	glGenTextures(1, &s_font_texture);
 	glBindTexture(GL_TEXTURE_2D, s_font_texture);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE_ALPHA, font->texture_width, font->texture_width, 
-				 0, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, font->texture);
+	// load all mip levels
+	int mip_level = 0;
+	int width = font->texture_width;
+	unsigned char* ptr = (unsigned char*)font->texture;
+	while (width >= 1)
+	{
+		glTexImage2D(GL_TEXTURE_2D, mip_level, GL_LUMINANCE_ALPHA, width, width, 
+				 0, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, ptr);
+		ptr += width * width * 2;
+		mip_level++;
+		width /= 2;
+	}
 
 	bbq_free(font);
-
 }
 
 void Render()
@@ -95,7 +105,6 @@ void Render()
 	glDisable(GL_DEPTH_TEST);
 	
 	glDepthMask(GL_FALSE);
-
 
 	// display gray checker board
 	float* uvs = s_quad_uvs;
@@ -124,7 +133,6 @@ void Render()
 	}
 	glEnd();
 
-
 	SDL_GL_SwapBuffers();
 }
 
@@ -135,7 +143,7 @@ int main(int argc, char* argv[])
 
 	atexit(SDL_Quit);
 
-	SDL_Surface* screen = SDL_SetVideoMode(800, 600, 32, 
+	SDL_Surface* screen = SDL_SetVideoMode(512, 512, 32, 
 										   SDL_HWSURFACE | SDL_RESIZABLE | SDL_OPENGL);
 
 	if (!screen)
