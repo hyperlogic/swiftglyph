@@ -108,6 +108,7 @@ struct Font* LoadFont(const char* font_filename, GLuint* glt)
 	int mip_level = 0;
 	int width = font->texture_width;
 	unsigned char* ptr = texture_data;
+	printf("width = %d\n", width);
 	while (width >= 1)
 	{
 		glTexImage2D(GL_TEXTURE_2D, mip_level, GL_LUMINANCE_ALPHA, width, width, 
@@ -202,6 +203,23 @@ void DrawGlyph(float pen_x, float pen_y, struct GlyphMetrics* glyph)
 	}
 }
 
+void KerningLookup(struct Font* font, unsigned int curr_index, unsigned int next_index, 
+				   float* kerning_x, float* kerning_y)
+{
+	// TODO: faster search
+	unsigned int i;
+	for (i = 0; i < font->glyph_kerning_array_size; ++i)
+	{
+		if ((font->glyph_kerning_array[i].first_index == curr_index) &&
+			(font->glyph_kerning_array[i].second_index == next_index))
+		{
+			*kerning_x = font->glyph_kerning_array[i].kerning[0];
+			*kerning_y = font->glyph_kerning_array[i].kerning[1];
+			return;
+		}
+	}
+}
+
 void DrawString(struct Font* font, const char* str)
 {
 	int cursor = 0;
@@ -219,7 +237,7 @@ void DrawString(struct Font* font, const char* str)
 
 			// move the pen down by height, and reset x to zero
 			pen_x = 0;
-			//pen_y -= font->line_height;
+			pen_y -= 1;
 			cursor = 0;
 		}
 		else if (*p == 9)  // TAB
@@ -242,17 +260,12 @@ void DrawString(struct Font* font, const char* str)
 
 			float kerning_x = 0;
 			float kerning_y = 0;
-			// TODO: look up in kerning table
-			/*
+			// look up in kerning table
 			if (!isspace(*(p+1)))
 			{
-				GlyphInfo* next = GetGlyphInfo(*(p+1));
-				FT_Vector ftKerning;
-				FT_Get_Kerning(m_face, curr->ftGlyphIndex, next->ftGlyphIndex, 
-							   FT_KERNING_UNFITTED, &ftKerning);
-				kerning.Set(FIXED_TO_FLOAT(ftKerning.x), FIXED_TO_FLOAT(ftKerning.y));
+				struct GlyphMetrics* next = FindGlyphMetrics(font, *(p+1));
+				KerningLookup(font, curr->char_index, next->char_index, &kerning_x, &kerning_y);
 			}
-			*/
 
 			// advance the pen
 			pen_x += curr->advance[0] + kerning_x;
@@ -267,7 +280,7 @@ void RenderInit()
 {
 	// set up projection matrix
 	glMatrixMode(GL_PROJECTION);
-	glOrtho(100.0, -100.0, -100.0, 100.0, 1.0, -1.0);
+	glOrtho(3.0, -3.0, -3.0, 3.0, 1.0, -1.0);
 	glMatrixMode(GL_MODELVIEW);
 	glRotatef(180.0,0,1,0);
 
@@ -282,8 +295,6 @@ void RenderInit()
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	glTexImage2D(GL_TEXTURE_2D, 0, 4, 8, 8, 
 				 0, GL_RGBA, GL_UNSIGNED_BYTE, s_checker_texture_data);
-
-	s_font = LoadFont("FreeSans.bin", &s_font_texture);
 }
 
 void Render()
@@ -312,12 +323,11 @@ void Render()
 	}
 	glEnd();
 
-	/*
 	// display font texture
 	uvs = s_quad_uvs;
 	verts = s_quad_verts;
 	glBindTexture(GL_TEXTURE_2D, s_font_texture);
-	glColor4f(1,1,1,1);
+	glColor4f(0.4,0.4,0.4,1);
 	glBegin(GL_QUADS);
 	for (i = 0; i < 4; i++)
 	{
@@ -325,10 +335,10 @@ void Render()
 		glVertex3fv(verts); verts += 3;
 	}
 	glEnd();
-	*/
 
+	glColor4f(1,1,1,1);
 	glBindTexture(GL_TEXTURE_2D, s_font_texture);
-	DrawString(s_font, "hello WoRld!");
+	DrawString(s_font, "WoWAW\nHello\nWorld!");
 
 	SDL_GL_SwapBuffers();
 }
@@ -347,6 +357,7 @@ int main(int argc, char* argv[])
 		fprintf(stderr, "Couldn't create SDL screen!\n");
 
 	RenderInit();
+	s_font = LoadFont("Inconsolata.bin", &s_font_texture);
 
 	int done = 0;
 	while (!done)

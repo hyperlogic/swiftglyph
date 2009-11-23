@@ -128,6 +128,8 @@ int main(int argc, char** argv)
 	error = FT_Set_Char_Size(s_face, pixels << 6, 0, 72, 0);
 	assert(!error);
 
+	float line_height = FIXED_TO_FLOAT(s_face->size->metrics.height);
+
 	printf("Generating glyphs\n");
 	
 	// render each glyph into the buffer
@@ -159,10 +161,12 @@ int main(int argc, char** argv)
 
 		// store metrics.
 		s_glyphInfo[i].ftGlyphIndex = glyph_index;
-		s_glyphInfo[i].bearing.x = FIXED_TO_FLOAT(s_face->glyph->metrics.horiBearingX);
-		s_glyphInfo[i].bearing.y = FIXED_TO_FLOAT(s_face->glyph->metrics.horiBearingY);
-		s_glyphInfo[i].size.x = FIXED_TO_FLOAT(s_face->glyph->metrics.width);
-		s_glyphInfo[i].size.y = FIXED_TO_FLOAT(s_face->glyph->metrics.height);
+		s_glyphInfo[i].bearing.x = FIXED_TO_FLOAT(s_face->glyph->metrics.horiBearingX) / 
+			                       line_height;
+		s_glyphInfo[i].bearing.y = FIXED_TO_FLOAT(s_face->glyph->metrics.horiBearingY) / 
+			                       line_height;
+		s_glyphInfo[i].size.x = FIXED_TO_FLOAT(s_face->glyph->metrics.width) / line_height;
+		s_glyphInfo[i].size.y = FIXED_TO_FLOAT(s_face->glyph->metrics.height) / line_height;
 
 		float top = (float)y / kGlyphTextureWidth;
 		float left = (float)x / kGlyphTextureWidth;
@@ -174,7 +178,8 @@ int main(int argc, char** argv)
 		s_glyphInfo[i].texUpperRight.x = right;
 		s_glyphInfo[i].texUpperRight.y = top;
 
-		s_glyphInfo[i].advance.x = FIXED_TO_FLOAT(s_face->glyph->metrics.horiAdvance);
+		s_glyphInfo[i].advance.x = FIXED_TO_FLOAT(s_face->glyph->metrics.horiAdvance) / 
+			                       line_height;
 		s_glyphInfo[i].advance.y = 0.0f;
 	}
 
@@ -243,6 +248,7 @@ int main(int argc, char** argv)
 
 	// dump kerning table
 	fprintf(fp, "kerning:\n");
+	bool empty = true;
 	for (int i = 0; i < kNumGlyphs; ++i)
 	{
 		for (int j = 0; j < kNumGlyphs; ++j)
@@ -252,11 +258,12 @@ int main(int argc, char** argv)
 						   FT_KERNING_UNFITTED, &ftKerning);
 			if (ftKerning.x != 0 || ftKerning.y != 0)
 			{
+				empty = false;
 				fprintf(fp, "-\n");
 				fprintf(fp, "  first_index: %u\n", s_glyphInfo[i].ftGlyphIndex);
 				fprintf(fp, "  second_index: %u\n", s_glyphInfo[j].ftGlyphIndex);
-				fprintf(fp, "  kerning: [%f, %f]\n", FIXED_TO_FLOAT(ftKerning.x),
-						FIXED_TO_FLOAT(ftKerning.y));
+				fprintf(fp, "  kerning: [%f, %f]\n", FIXED_TO_FLOAT(ftKerning.x) / line_height,
+						FIXED_TO_FLOAT(ftKerning.y) / line_height);
 			}
 		}
 	}

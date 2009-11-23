@@ -7,9 +7,15 @@ BBQ.header do
     fixed_array float, lower_left, 2
     fixed_array float, advance, 2
   end
+  struct GlyphKerning do
+    uint32 first_index
+    uint32 second_index
+    fixed_array float, kerning, 2
+  end
   struct Font do
     int32 texture_width
     string texture_filename
     var_array GlyphMetrics, glyph_metrics_array
+    var_array GlyphKerning, glyph_kerning_array
   end
 end
