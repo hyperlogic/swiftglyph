@@ -8,7 +8,7 @@ BBQ.header do
   end
   struct Font do
     int32 texture_width
-    pointer uint8, texture
+    string texture_filename
     var_array GlyphMetrics, glyph_metrics_array
   end
 end

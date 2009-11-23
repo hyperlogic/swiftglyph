@@ -47,6 +47,78 @@ static float s_quad_uvs[] = {
 static GLuint s_checker_texture;
 static GLuint s_font_texture;
 
+struct Font* s_font = 0;
+
+enum LoadFileToMemoryResult { CouldNotOpenFile = -1, CouldNotReadFile = -2 };
+static int LoadFileToMemory(const char *filename, unsigned char **result)
+{
+	int size = 0;
+	FILE *f = fopen(filename, "rb");
+	if (f == NULL) 
+	{
+		*result = NULL;
+		return CouldNotOpenFile;
+	}
+	fseek(f, 0, SEEK_END);
+	size = ftell(f);
+	fseek(f, 0, SEEK_SET);
+	*result = (unsigned char*)malloc(sizeof(unsigned char) * (size + 1));
+	
+	int newSize = (int)fread(*result, sizeof(char), size, f);
+	if (size != newSize)
+	{
+		printf("size = %d, newSize = %d\n", size, newSize);
+		free(*result);
+		return CouldNotReadFile;
+	}
+	fclose(f);
+	(*result)[size] = 0;  // make sure it's null terminated.
+	return size;
+}
+
+struct Font* LoadFont(const char* font_filename, GLuint* glt)
+{
+	// load the font
+	struct Font* font = (struct Font*)bbq_load(font_filename);
+
+	glGenTextures(1, glt);
+	glBindTexture(GL_TEXTURE_2D, *glt);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+	unsigned char* texture_data;
+	int result = LoadFileToMemory(font->texture_filename, &texture_data);
+	if (result < 0)
+	{
+		printf("error loading %s\n", font->texture_filename);
+		exit(1);
+	}
+
+	// load all mip levels
+	int mip_level = 0;
+	int width = font->texture_width;
+	unsigned char* ptr = texture_data;
+	while (width >= 1)
+	{
+		glTexImage2D(GL_TEXTURE_2D, mip_level, GL_LUMINANCE_ALPHA, width, width, 
+				 0, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, ptr);
+		ptr += width * width * 2;
+		mip_level++;
+		width /= 2;
+	}
+	free(texture_data);
+
+	return font;
+}
+
+void FreeFont(struct Font* font)
+{
+	bbq_free(font);
+}
+
 void RenderInit()
 {
 	// set up projection matrix
@@ -66,32 +138,7 @@ void RenderInit()
 	glTexImage2D(GL_TEXTURE_2D, 0, 4, 8, 8, 
 				 0, GL_RGBA, GL_UNSIGNED_BYTE, s_checker_texture_data);
 
-	// load the font
-//	struct Font* font = (struct Font*)bbq_load("Inconsolata.bin");
-	struct Font* font = (struct Font*)bbq_load("FreeSans.bin");
-
-	glGenTextures(1, &s_font_texture);
-	glBindTexture(GL_TEXTURE_2D, s_font_texture);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-	// load all mip levels
-	int mip_level = 0;
-	int width = font->texture_width;
-	unsigned char* ptr = (unsigned char*)font->texture;
-	while (width >= 1)
-	{
-		glTexImage2D(GL_TEXTURE_2D, mip_level, GL_LUMINANCE_ALPHA, width, width, 
-				 0, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, ptr);
-		ptr += width * width * 2;
-		mip_level++;
-		width /= 2;
-	}
-
-	bbq_free(font);
+	s_font = LoadFont("FreeSans.bin", &s_font_texture);
 }
 
 void Render()
