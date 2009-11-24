@@ -232,9 +232,6 @@ void DrawString(struct Font* font, const char* str)
 	{
 		if (*p == '\n')
 		{
-			// TODO: add line height to metrics
-			// return FIXED_TO_FLOAT(m_face->size->metrics.height);
-
 			// move the pen down by height, and reset x to zero
 			pen_x = 0;
 			pen_y -= 1;
