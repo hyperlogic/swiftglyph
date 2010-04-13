@@ -43,8 +43,10 @@ void ErrorOut()
 {
 	printf("Generates a texture and font metrics for the specified font.\n");
 	printf("    Usage: swiftglyph [options] fontname\n");
-	printf("        -width number : specify width of the generated texture.\n");
-	printf("        -debug        : will output generated texture as temp.tga.\n");
+	printf("        -width integer   : specify width of the generated texture.\n");
+	printf("        -padding integer : specify padding around each glyph. Can help prevent\n");
+    printf("                           glyph clipping when rendering at small sizes.\n");
+	printf("        -debug           : will output generated texture as temp.tga.\n");
 	exit(1);
 }
 
@@ -52,6 +54,7 @@ int main(int argc, char** argv)
 {
 	// check options
 	int textureWidth = 512;
+	int padding = 1;
 	std::string fontname;
 	bool foundFile = false;
 	bool debug = false;
@@ -73,6 +76,23 @@ int main(int argc, char** argv)
 			}
 
 			printf("Error : -width should be followed by a number which is a power of 2\n");
+			return 1;
+		}
+		else if (strcmp(argv[i], "-padding") == 0)
+		{
+			if ((i + 1) < argc)
+			{
+				padding = atoi(argv[i+1]);
+
+				// positive and not too large.
+				if (padding >= 0 && padding <= 10) 
+				{
+					i++;
+					continue;
+				}
+			}
+
+			printf("Error : -padding should be followed by a positive integer less than 11.\n");
 			return 1;
 		}
 		else if (strcmp(argv[i], "-debug") == 0)
@@ -119,12 +139,14 @@ int main(int argc, char** argv)
 	const int kGlyphTextureWidth = textureWidth;
 	const int kGlyphWidth = kGlyphTextureWidth / kNumGlyphsPerRow;
 	const int kBufferSize = kGlyphTextureWidth * kGlyphTextureWidth;
+	const int kGlyphPixelBorder = padding;
 
 	// allocate & clear the render buffer
 	unsigned char buffer[kBufferSize];
 	memset(buffer, 0, kBufferSize);
 
-	int pixels = kGlyphTextureWidth / kNumGlyphsPerRow;
+
+	int pixels = (kGlyphTextureWidth / kNumGlyphsPerRow) - (2 * kGlyphPixelBorder);
 	error = FT_Set_Char_Size(s_face, pixels << 6, 0, 72, 0);
 	assert(!error);
 
@@ -135,7 +157,6 @@ int main(int argc, char** argv)
 	// render each glyph into the buffer
 	for (int i = 0; i < kNumGlyphs; ++i)
 	{
-
 		// load glyph into s_face->glyph
 		FT_UInt glyph_index = FT_Get_Char_Index(s_face, kStartGlyph + i);
 		error = FT_Load_Glyph(s_face, glyph_index, FT_LOAD_DEFAULT);
@@ -150,13 +171,13 @@ int main(int argc, char** argv)
 		int x = c * kGlyphWidth;
 		int y = r * kGlyphWidth;
 		unsigned char* dest = buffer + (y * kGlyphTextureWidth) + x;
-				
+
 		// copy glyph bitmap into buffer, scanline by scanline.
 		for (int j = 0; j < s_face->glyph->bitmap.rows; ++j)
 		{
-			memcpy(dest + (j * kGlyphTextureWidth), 
+			memcpy(dest + ((j + kGlyphPixelBorder) * kGlyphTextureWidth) + kGlyphPixelBorder, 
 				   s_face->glyph->bitmap.buffer + (s_face->glyph->bitmap.pitch * j), 
-				   s_face->glyph->bitmap.width);		
+				   s_face->glyph->bitmap.width);
 		}
 
 		// store metrics.
@@ -168,10 +189,12 @@ int main(int argc, char** argv)
 		s_glyphInfo[i].size.x = FIXED_TO_FLOAT(s_face->glyph->metrics.width) / line_height;
 		s_glyphInfo[i].size.y = FIXED_TO_FLOAT(s_face->glyph->metrics.height) / line_height;
 
-		float top = (float)y / kGlyphTextureWidth;
-		float left = (float)x / kGlyphTextureWidth;
-		float bottom = (float)(y + s_face->glyph->bitmap.rows) / kGlyphTextureWidth;
-		float right = (float)(x + s_face->glyph->bitmap.width) / kGlyphTextureWidth;
+		float top = (float)(y + kGlyphPixelBorder) / kGlyphTextureWidth;
+		float left = (float)(x + kGlyphPixelBorder) / kGlyphTextureWidth;
+		float bottom = (float)(y + kGlyphPixelBorder + s_face->glyph->bitmap.rows) / 
+			kGlyphTextureWidth;
+		float right = (float)(x + kGlyphPixelBorder + s_face->glyph->bitmap.width) / 
+			kGlyphTextureWidth;
 
 		s_glyphInfo[i].texLowerLeft.x = left;
 		s_glyphInfo[i].texLowerLeft.y = bottom;
