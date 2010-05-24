@@ -23,9 +23,31 @@ const int TAB_SIZE = 4;
 
 struct Vec2
 {
+	Vec2() {}
+	Vec2(float xIn, float yIn) : x(xIn), y(yIn) {}
 	float x;
 	float y;
 };
+
+Vec2 operator+(const Vec2& a, const Vec2& b)
+{
+	return Vec2(a.x + b.x, a.y + b.y);
+}
+
+Vec2 operator-(const Vec2& a, const Vec2& b)
+{
+	return Vec2(a.x - b.x, a.y - b.y);
+}
+
+Vec2 operator*(const Vec2& a, const Vec2& b)
+{
+	return Vec2(a.x * b.x, a.y * b.y);
+}
+
+Vec2 operator/(const Vec2& a, const Vec2& b)
+{
+	return Vec2(a.x / b.x, a.y / b.y);
+}
 
 struct GlyphInfo
 {
@@ -145,14 +167,13 @@ int main(int argc, char** argv)
 	unsigned char buffer[kBufferSize];
 	memset(buffer, 0, kBufferSize);
 
-
-	int pixels = (kGlyphTextureWidth / kNumGlyphsPerRow) - (2 * kGlyphPixelBorder);
+	int pixels = kGlyphWidth - (2 * kGlyphPixelBorder);
 	error = FT_Set_Char_Size(s_face, pixels << 6, 0, 72, 0);
 	assert(!error);
 
 	float line_height = FIXED_TO_FLOAT(s_face->size->metrics.height);
 
-	printf("Generating glyphs\n");
+	//printf("Generating glyphs\n");
 	
 	// render each glyph into the buffer
 	for (int i = 0; i < kNumGlyphs; ++i)
@@ -182,27 +203,26 @@ int main(int argc, char** argv)
 
 		// store metrics.
 		s_glyphInfo[i].ftGlyphIndex = glyph_index;
-		s_glyphInfo[i].bearing.x = FIXED_TO_FLOAT(s_face->glyph->metrics.horiBearingX) / 
-			                       line_height;
-		s_glyphInfo[i].bearing.y = FIXED_TO_FLOAT(s_face->glyph->metrics.horiBearingY) / 
-			                       line_height;
-		s_glyphInfo[i].size.x = FIXED_TO_FLOAT(s_face->glyph->metrics.width) / line_height;
-		s_glyphInfo[i].size.y = FIXED_TO_FLOAT(s_face->glyph->metrics.height) / line_height;
 
-		float top = (float)(y + kGlyphPixelBorder) / kGlyphTextureWidth;
-		float left = (float)(x + kGlyphPixelBorder) / kGlyphTextureWidth;
-		float bottom = (float)(y + kGlyphPixelBorder + s_face->glyph->bitmap.rows) / 
-			kGlyphTextureWidth;
-		float right = (float)(x + kGlyphPixelBorder + s_face->glyph->bitmap.width) / 
-			kGlyphTextureWidth;
+		const float kXYGlyphPadding = (float)kGlyphPixelBorder / kGlyphWidth;
+
+		s_glyphInfo[i].bearing.x = (FIXED_TO_FLOAT(s_face->glyph->metrics.horiBearingX) / line_height) - kXYGlyphPadding;
+		s_glyphInfo[i].bearing.y = (FIXED_TO_FLOAT(s_face->glyph->metrics.horiBearingY) / line_height) - kXYGlyphPadding;
+		
+		s_glyphInfo[i].size.x = (FIXED_TO_FLOAT(s_face->glyph->metrics.width) / line_height) + 2.0f * kXYGlyphPadding;
+		s_glyphInfo[i].size.y = (FIXED_TO_FLOAT(s_face->glyph->metrics.height) / line_height) + 2.0f * kXYGlyphPadding;
+
+		float top = (float)y / kGlyphTextureWidth;
+		float left = (float)x / kGlyphTextureWidth;
+		float bottom = (float)(y + s_face->glyph->bitmap.rows + 2 * kGlyphPixelBorder) / kGlyphTextureWidth;
+		float right = (float)(x + s_face->glyph->bitmap.width + 2 * kGlyphPixelBorder) / kGlyphTextureWidth;
 
 		s_glyphInfo[i].texLowerLeft.x = left;
 		s_glyphInfo[i].texLowerLeft.y = bottom;
 		s_glyphInfo[i].texUpperRight.x = right;
 		s_glyphInfo[i].texUpperRight.y = top;
 
-		s_glyphInfo[i].advance.x = FIXED_TO_FLOAT(s_face->glyph->metrics.horiAdvance) / 
-			                       line_height;
+		s_glyphInfo[i].advance.x = FIXED_TO_FLOAT(s_face->glyph->metrics.horiAdvance) / line_height;
 		s_glyphInfo[i].advance.y = 0.0f;
 	}
 
@@ -231,7 +251,7 @@ int main(int argc, char** argv)
 	int i = 0;
 	while (w >= 1)
 	{
-		printf("processing lod level %d\n", i);
+		//printf("processing lod level %d\n", i);
 
 		// scale the image for each mip-level
 		sprintf(cmd, "convert -scale %dx%d temp.tga temp2.tga", w, w);
