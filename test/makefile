@@ -3,9 +3,9 @@
 GCC = gcc
 
 # SDL Mac OS X
-CFLAGS = -Wall -D DARWIN -O -I /Developer/SDKs/MacOSX10.4u.sdk/System/Library/Frameworks/OpenGL.framework/Headers -I /Developer/SDKs/MacOSX10.4u.sdk/System/Library/Frameworks/GLUT.framework/Headers -I /Library/Frameworks/SDL.framework/Headers -I/usr/X11/include/freetype2 -I/usr/X11/include
+CFLAGS = -Wall -D DARWIN -O -I /Developer/SDKs/MacOSX10.4u.sdk/System/Library/Frameworks/OpenGL.framework/Headers -I /Developer/SDKs/MacOSX10.4u.sdk/System/Library/Frameworks/GLUT.framework/Headers -I /Library/Frameworks/SDL.framework/Headers -I/usr/X11/include/freetype2 -I/usr/X11/include -I/opt/local/include/SDL
 
-LFLAGS = -framework Cocoa -framework OpenGL -framework GLUT -framework SDL -lstdc++ -Wl -framework CoreServices -framework ApplicationServices -Wl,-dylib_file,/System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libGL.dylib:/System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libGL.dylib
+LFLAGS = -framework Cocoa -framework OpenGL -framework GLUT -lSDL -lstdc++ -Wl -framework CoreServices -framework ApplicationServices -L/opt/local/lib
 
 OBJ = test.o SDLMain.o bbq.o
 
@@ -29,11 +29,11 @@ font.h : font.dd
 
 # generate bbq binary
 Inconsolata.bin : Inconsolata.di font.dd Inconsolata.yaml Inconsolata.raw
-	bbq-cook Inconsolata.di Inconsolata.bin
+	bbq-cook -l Inconsolata.di Inconsolata.bin
 
 # generate bbq binary
 FreeSans.bin : FreeSans.di font.dd FreeSans.yaml FreeSans.raw
-	bbq-cook FreeSans.di FreeSans.bin
+	bbq-cook -l FreeSans.di FreeSans.bin
 
 # invoke swiftglyph to generate texture & yaml file
 Inconsolata.yaml Inconsolata.raw : Inconsolata.otf

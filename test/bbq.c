@@ -33,14 +33,15 @@ static int LoadFileToMemory(const char *filename, unsigned char **result)
 
 // Memory layout
 //
-// p begining of file in memory.
-// p + 0 : num_pointers
-// p + 4 : offset 0
-// p + 8 : offset 1
-// ...
-// p + ((num_pointers - 1) * 4) : offset n-1
-// p + (num_pointers * 4) : num_pointers   // again so we can figure out what memory to free.
-// p + ((num_pointers + 1) * 4) : start of cooked data
+// unsigned int* base;
+// base begining of file in memory.
+// base + 0                       | num_offsets
+// base + 1                       | offset 0
+// base + 2                       | offset 1
+// ...                         
+// base + num_offsets             | offset n-1
+// base + num_offsets + 1         | num_offsets   // again so we can figure out what memory to free.
+// base + num_offsets + 2         | start of cooked data
 //
 
 void* bbq_load(const char* filename)
@@ -50,23 +51,22 @@ void* bbq_load(const char* filename)
 	if(size <= 0)
 		return 0;
 
-	// get the start of the pointer table
-	unsigned int* ptr_table = (unsigned int*)p;
-	unsigned int num_ptrs = *ptr_table;
-	ptr_table++;
+	unsigned int* base = (unsigned int*)p;
+	unsigned int num_offsets = *base;
+	unsigned int* offset = base + 1;
 
-	// get the start of the actual data, (the 2 is to skip past both num_pointer values)
-	unsigned char* base = p + ((num_ptrs + 2) * sizeof(unsigned int));
+	// get the start of the actual data, (the 2 is to skip past both num_offsets values)
+	unsigned char* data = (unsigned char*)(base + num_offsets + 2);
 
 	// fix up the pointers
-	while ((ptr_table + 1) < (unsigned int*)base)
+	while ((unsigned char*)(offset + 1) < data)
 	{
-		unsigned int* ptr = (unsigned int*)(base + *ptr_table);
-		*ptr = (unsigned int)((unsigned char*)ptr + *ptr);
-		ptr_table++;
+		unsigned long* ptr = (unsigned long*)(data + *offset);
+		*ptr = (unsigned long)((unsigned char*)ptr + *ptr);
+		offset++;
 	}
 	
-	return base;
+	return data;
 }
 
 void bbq_free(void* ptr)

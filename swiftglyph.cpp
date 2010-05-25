@@ -29,9 +29,14 @@ struct Vec2
 	float y;
 };
 
-Vec2 operator+(const Vec2& a, const Vec2& b)
+Vec2 operator+(const Vec2& a, const Vec2& b) 
 {
 	return Vec2(a.x + b.x, a.y + b.y);
+}
+
+Vec2 operator+(const Vec2& a, float scalar)
+{
+	return Vec2(a.x + scalar, a.y + scalar);
 }
 
 Vec2 operator-(const Vec2& a, const Vec2& b)
@@ -39,9 +44,19 @@ Vec2 operator-(const Vec2& a, const Vec2& b)
 	return Vec2(a.x - b.x, a.y - b.y);
 }
 
+Vec2 operator-(const Vec2& a, float scalar)
+{
+	return Vec2(a.x - scalar, a.y - scalar);
+}
+
 Vec2 operator*(const Vec2& a, const Vec2& b)
 {
 	return Vec2(a.x * b.x, a.y * b.y);
+}
+
+Vec2 operator*(const Vec2& a, float scalar)
+{
+	return Vec2(a.x * scalar, a.y * scalar);
 }
 
 Vec2 operator/(const Vec2& a, const Vec2& b)
@@ -49,13 +64,18 @@ Vec2 operator/(const Vec2& a, const Vec2& b)
 	return Vec2(a.x / b.x, a.y / b.y);
 }
 
+Vec2 operator/(const Vec2& a, float scalar)
+{
+	return Vec2(a.x / scalar, a.y / scalar);
+}
+
 struct GlyphInfo
 {
 	FT_UInt ftGlyphIndex;
-	Vec2 bearing;
-	Vec2 size;
-	Vec2 texUpperRight;
-	Vec2 texLowerLeft;
+	Vec2 xy_lower_left;
+	Vec2 xy_upper_right;
+	Vec2 uv_lower_left;
+	Vec2 uv_upper_right;
 	Vec2 advance;
 };
 
@@ -204,23 +224,19 @@ int main(int argc, char** argv)
 		// store metrics.
 		s_glyphInfo[i].ftGlyphIndex = glyph_index;
 
+		Vec2 xy_ll = Vec2(FIXED_TO_FLOAT(s_face->glyph->metrics.horiBearingX), 
+						  FIXED_TO_FLOAT(s_face->glyph->metrics.horiBearingY - s_face->glyph->metrics.height)) / line_height;
+		Vec2 xy_size = Vec2(FIXED_TO_FLOAT(s_face->glyph->metrics.width), FIXED_TO_FLOAT(s_face->glyph->metrics.height)) / line_height;
 		const float kXYGlyphPadding = (float)kGlyphPixelBorder / kGlyphWidth;
+		s_glyphInfo[i].xy_lower_left = xy_ll - kXYGlyphPadding;
+		s_glyphInfo[i].xy_upper_right = s_glyphInfo[i].xy_lower_left + xy_size + 2.0f * kXYGlyphPadding;
 
-		s_glyphInfo[i].bearing.x = (FIXED_TO_FLOAT(s_face->glyph->metrics.horiBearingX) / line_height) - kXYGlyphPadding;
-		s_glyphInfo[i].bearing.y = (FIXED_TO_FLOAT(s_face->glyph->metrics.horiBearingY) / line_height) - kXYGlyphPadding;
-		
-		s_glyphInfo[i].size.x = (FIXED_TO_FLOAT(s_face->glyph->metrics.width) / line_height) + 2.0f * kXYGlyphPadding;
-		s_glyphInfo[i].size.y = (FIXED_TO_FLOAT(s_face->glyph->metrics.height) / line_height) + 2.0f * kXYGlyphPadding;
-
-		float top = (float)y / kGlyphTextureWidth;
-		float left = (float)x / kGlyphTextureWidth;
-		float bottom = (float)(y + s_face->glyph->bitmap.rows + 2 * kGlyphPixelBorder) / kGlyphTextureWidth;
-		float right = (float)(x + s_face->glyph->bitmap.width + 2 * kGlyphPixelBorder) / kGlyphTextureWidth;
-
-		s_glyphInfo[i].texLowerLeft.x = left;
-		s_glyphInfo[i].texLowerLeft.y = bottom;
-		s_glyphInfo[i].texUpperRight.x = right;
-		s_glyphInfo[i].texUpperRight.y = top;
+		Vec2 glyph_bitmap_size = Vec2(s_face->glyph->bitmap.width, s_face->glyph->bitmap.rows);
+		Vec2 uv_size = (glyph_bitmap_size + (2.0f * kGlyphPixelBorder)) / kGlyphTextureWidth;
+		Vec2 upper_left = Vec2(x, y) / kGlyphTextureWidth;
+		Vec2 lower_right = upper_left + uv_size;
+		s_glyphInfo[i].uv_lower_left = Vec2(upper_left.x, lower_right.y);
+		s_glyphInfo[i].uv_upper_right = Vec2(lower_right.x, upper_left.y);
 
 		s_glyphInfo[i].advance.x = FIXED_TO_FLOAT(s_face->glyph->metrics.horiAdvance) / line_height;
 		s_glyphInfo[i].advance.y = 0.0f;
@@ -279,14 +295,11 @@ int main(int argc, char** argv)
 	{
 		fprintf(fp, "-\n");
 		fprintf(fp, "  char_index: %u\n", s_glyphInfo[i].ftGlyphIndex);
-		fprintf(fp, "  bearing: [%f, %f]\n", s_glyphInfo[i].bearing.x, s_glyphInfo[i].bearing.y);
-		fprintf(fp, "  size: [%f, %f]\n", s_glyphInfo[i].size.x, s_glyphInfo[i].size.y);
-		fprintf(fp, "  upper_right: [%f, %f]\n", s_glyphInfo[i].texUpperRight.x, 
-				                                 s_glyphInfo[i].texUpperRight.y);
-		fprintf(fp, "  lower_left: [%f, %f]\n", s_glyphInfo[i].texLowerLeft.x, 
-				                                s_glyphInfo[i].texLowerLeft.y);
-		fprintf(fp, "  advance: [%f, %f]\n", s_glyphInfo[i].advance.x, 
-				                             s_glyphInfo[i].advance.y);
+		fprintf(fp, "  xy_lower_left: [%f, %f]\n", s_glyphInfo[i].xy_lower_left.x, s_glyphInfo[i].xy_lower_left.y);
+		fprintf(fp, "  xy_upper_right: [%f, %f]\n", s_glyphInfo[i].xy_upper_right.x, s_glyphInfo[i].xy_upper_right.y);
+		fprintf(fp, "  uv_lower_left: [%f, %f]\n", s_glyphInfo[i].uv_lower_left.x, s_glyphInfo[i].uv_lower_left.y);
+		fprintf(fp, "  uv_upper_right: [%f, %f]\n", s_glyphInfo[i].uv_upper_right.x, s_glyphInfo[i].uv_upper_right.y);
+		fprintf(fp, "  advance: [%f, %f]\n", s_glyphInfo[i].advance.x, s_glyphInfo[i].advance.y);
 	}
 
 	// dump kerning table

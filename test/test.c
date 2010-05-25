@@ -141,66 +141,41 @@ struct GlyphMetrics* FindGlyphMetrics(struct Font* font, char c)
 void DrawGlyph(float pen_x, float pen_y, struct GlyphMetrics* glyph)
 {
 	assert(glyph);
-	// skip white-space glyphs
-	if (glyph->size[0] >= 0.0f && glyph->size[1] >= 0.0f)
-	{
-		// vertex coords
-		float w = glyph->size[0];
-		float h = glyph->size[1];
-		float ul[3];
-		ul[0] = pen_x + glyph->bearing[0];
-		ul[1] = pen_y + glyph->bearing[1];
-		ul[2] = 0;
 
-		float v0[3];
-		v0[0] = ul[0] + w;
-		v0[1] = ul[1];
-		v0[2] = ul[2];
+	// vertex coords
 
-		float v1[3];
-		v1[0] = ul[0];
-		v1[1] = ul[1];
-		v1[2] = ul[2];
+	float v0[3], v1[3], v2[3], v3[3];
+	v0[0] = pen_x + glyph->xy_lower_left[0];
+	v0[1] = pen_y + glyph->xy_lower_left[1];
+	v1[0] = pen_x + glyph->xy_upper_right[0];
+	v1[1] = pen_y + glyph->xy_lower_left[1];
+	v2[0] = pen_x + glyph->xy_upper_right[0];
+	v2[1] = pen_y + glyph->xy_upper_right[1];
+	v3[0] = pen_x + glyph->xy_lower_left[0];
+	v3[1] = pen_y + glyph->xy_upper_right[1];
+	v0[2] = v1[2] = v2[2] = v3[2] = 0.0f;
 
-		float v2[3];
-		v2[0] = ul[0];
-		v2[1] = ul[1] - h;
-		v2[2] = ul[2];
+	float uv0[3], uv1[3], uv2[3], uv3[3];
+	uv0[0] = glyph->uv_lower_left[0];
+	uv0[1] = glyph->uv_lower_left[1];
+	uv1[0] = glyph->uv_upper_right[0];
+	uv1[1] = glyph->uv_lower_left[1];
+	uv2[0] = glyph->uv_upper_right[0];
+	uv2[1] = glyph->uv_upper_right[1];
+	uv3[0] = glyph->uv_lower_left[0];
+	uv3[1] = glyph->uv_upper_right[1];
+		
+	glMultiTexCoord2fv(0, uv0);
+	glVertex3fv(v0);
 
-		float v3[3];
-		v3[0] = ul[0] + w;
-		v3[1] = ul[1] - h;
-		v3[2] = ul[2];
-	
-		// texture coords
-		float uv0[2];
-		uv0[0] = glyph->upper_right[0];
-		uv0[1] = glyph->upper_right[1];
+	glMultiTexCoord2fv(0, uv1);
+	glVertex3fv(v1);
 
-		float uv1[2];
-		uv1[0] = glyph->lower_left[0];
-		uv1[1] = glyph->upper_right[1];
+	glMultiTexCoord2fv(0, uv2);
+	glVertex3fv(v2);
 
-		float uv2[2];
-		uv2[0] = glyph->lower_left[0];
-		uv2[1] = glyph->lower_left[1];
-
-		float uv3[2];
-		uv3[0] = glyph->upper_right[0];
-		uv3[1] = glyph->lower_left[1];
-
-		glMultiTexCoord2fv(0, uv0);
-		glVertex3fv(v0);
-
-		glMultiTexCoord2fv(0, uv1);
-		glVertex3fv(v1);
-
-		glMultiTexCoord2fv(0, uv2);
-		glVertex3fv(v2);
-
-		glMultiTexCoord2fv(0, uv3);
-		glVertex3fv(v3);
-	}
+	glMultiTexCoord2fv(0, uv3);
+	glVertex3fv(v3);
 }
 
 void KerningLookup(struct Font* font, unsigned int curr_index, unsigned int next_index, 
