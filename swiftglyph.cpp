@@ -72,6 +72,7 @@ Vec2 operator/(const Vec2& a, float scalar)
 struct GlyphInfo
 {
 	FT_UInt ftGlyphIndex;
+    unsigned char ascii_char;
 	Vec2 xy_lower_left;
 	Vec2 xy_upper_right;
 	Vec2 uv_lower_left;
@@ -154,12 +155,12 @@ static void ExportLuaMetrics(const std::string& fontprefix, const std::string& f
 	fprintf(fp, "    glyph_metrics = {\n");
 	for (int i = 0; i < kNumGlyphs; ++i)
 	{
-		fprintf(fp, "        { char_index = %u,\n", s_glyphInfo[i].ftGlyphIndex);
-		fprintf(fp, "          xy_lower_left = {%f, %f},\n", s_glyphInfo[i].xy_lower_left.x, s_glyphInfo[i].xy_lower_left.y);
-		fprintf(fp, "          xy_upper_right = {%f, %f},\n", s_glyphInfo[i].xy_upper_right.x, s_glyphInfo[i].xy_upper_right.y);
-		fprintf(fp, "          uv_lower_left = {%f, %f},\n", s_glyphInfo[i].uv_lower_left.x, s_glyphInfo[i].uv_lower_left.y);
-		fprintf(fp, "          uv_upper_right: {%f, %f},\n", s_glyphInfo[i].uv_upper_right.x, s_glyphInfo[i].uv_upper_right.y);
-		fprintf(fp, "          advance: {%f, %f} },\n", s_glyphInfo[i].advance.x, s_glyphInfo[i].advance.y);
+		fprintf(fp, "        [%u] = { ascii_index = %u,\n", s_glyphInfo[i].ascii_char, s_glyphInfo[i].ascii_char);
+		fprintf(fp, "            xy_lower_left = {%f, %f},\n", s_glyphInfo[i].xy_lower_left.x, s_glyphInfo[i].xy_lower_left.y);
+		fprintf(fp, "            xy_upper_right = {%f, %f},\n", s_glyphInfo[i].xy_upper_right.x, s_glyphInfo[i].xy_upper_right.y);
+		fprintf(fp, "            uv_lower_left = {%f, %f},\n", s_glyphInfo[i].uv_lower_left.x, s_glyphInfo[i].uv_lower_left.y);
+		fprintf(fp, "            uv_upper_right = {%f, %f},\n", s_glyphInfo[i].uv_upper_right.x, s_glyphInfo[i].uv_upper_right.y);
+		fprintf(fp, "            advance = {%f, %f} },\n", s_glyphInfo[i].advance.x, s_glyphInfo[i].advance.y);
 	}
     fprintf(fp, "    },\n");
 
@@ -176,8 +177,8 @@ static void ExportLuaMetrics(const std::string& fontprefix, const std::string& f
 			if (ftKerning.x != 0 || ftKerning.y != 0)
 			{
 				empty = false;
-				fprintf(fp, "        { first_index = %u,\n", s_glyphInfo[i].ftGlyphIndex);
-				fprintf(fp, "          second_index = %u,\n", s_glyphInfo[j].ftGlyphIndex);
+				fprintf(fp, "        { first_char = %u,\n", s_glyphInfo[i].ascii_char);
+				fprintf(fp, "          second_char = %u,\n", s_glyphInfo[j].ascii_char);
 				fprintf(fp, "          kerning = {%f, %f} },\n", FIXED_TO_FLOAT(ftKerning.x) / line_height,
 						FIXED_TO_FLOAT(ftKerning.y) / line_height);
 			}
@@ -338,6 +339,7 @@ int main(int argc, char** argv)
 
 		// store metrics.
 		s_glyphInfo[i].ftGlyphIndex = glyph_index;
+        s_glyphInfo[i].ascii_char = kStartGlyph + i;
 
 		Vec2 xy_ll = Vec2(FIXED_TO_FLOAT(s_face->glyph->metrics.horiBearingX), 
 						  FIXED_TO_FLOAT(s_face->glyph->metrics.horiBearingY - s_face->glyph->metrics.height)) / line_height;
@@ -388,7 +390,7 @@ int main(int argc, char** argv)
         // convert the tga to a png
         std::string fn = fontprefix + std::string(".png");
         char cmd[512];
-        sprintf(cmd, "convert -flip temp.tga %s", fn.c_str());
+        sprintf(cmd, "convert temp.tga %s", fn.c_str());
         system(cmd);
 
         remove("temp.tga");
