@@ -8,21 +8,28 @@ Swiftglyph is a tool for rendering text using OpenGL.
 That said, it doesn't actually do the rendering at runtime.
 What it does do, is convert a TrueType or OpenType font into a bitmap and a metrics file.
 
-The bitmap is written with a .raw extention.  It's a cooked Lumanince Alpha texture ready to be streamed in directly to glTexImage2D, including mip levels.
+The bitmap is written with a .raw extention.  
+It's a cooked Lumanince Alpha texture ready to be streamed in directly to glTexImage2D, including mip levels.
+There are also options to output tga and png images.
 
 The metrics file is a .yaml file that includes all the metrics for each glyph in the texture.
 It includes the uv-coordinates, bearing, size & advance.  
 It also contains a kerning table for pairs of glyphs.
+There is an option to output a lua table instead of a yaml file.
 
 Armed with this data, it's easy to render glyphs and strings using texture mapped polygons.
 
 Command line Options
 --------------------
 
-* -width int - specify width of the generated texture, must be a power of two.
-* -padding int - add additional padding around each glyph.  This can help revent glyph clipping
-when rendering at small resolutions.  Should be small in the 0-10 range.
-* -debug - outputs the generated texture as a TGA file named "temp.tga".
+Usage: swiftglyph [options] fontname
+*   -width integer : specify width of the generated texture.
+*   -padding integer : specify padding around each glyph. 
+    Can help prevent glyph clipping when rendering at small sizes. 
+    Should be small in the 0-10 range.
+*   -lua : will output metrics file as a lua table instead of a yaml file.
+*   -png : will output texture as a png instead of a raw file.
+*   -tga : will output texture as a tga instead of a raw file.
 
 Code Sample
 -----------

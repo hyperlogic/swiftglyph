@@ -88,9 +88,106 @@ void ErrorOut()
 	printf("        -width integer   : specify width of the generated texture.\n");
 	printf("        -padding integer : specify padding around each glyph. Can help prevent\n");
     printf("                           glyph clipping when rendering at small sizes.\n");
-	printf("        -debug           : will output generated texture as temp.tga.\n");
+    printf("        -lua             : will output metrics file as a lua table instead of a yaml file.\n");
+    printf("        -png             : will output texture as a png instead of a raw file.\n");
+    printf("        -tga             : will output texture as a tga instead of a raw file.\n");
 	exit(1);
 }
+
+static void ExportYAMLMetrics(const std::string& fontprefix, const std::string& fontname,
+                              int textureWidth, float line_height)
+{
+
+	// dump out metrics for each glyph into a yaml file
+	char yamlFilename[512];
+	sprintf(yamlFilename, "%s.yaml", fontprefix.c_str());
+	FILE* fp = fopen(yamlFilename, "w");
+	fprintf(fp, "# Font Metrics for %s\n", fontname.c_str());
+	fprintf(fp, "texture_width: %d\n", textureWidth);
+	fprintf(fp, "glyph_metrics:\n");
+	for (int i = 0; i < kNumGlyphs; ++i)
+	{
+		fprintf(fp, "-\n");
+		fprintf(fp, "  char_index: %u\n", s_glyphInfo[i].ftGlyphIndex);
+		fprintf(fp, "  xy_lower_left: [%f, %f]\n", s_glyphInfo[i].xy_lower_left.x, s_glyphInfo[i].xy_lower_left.y);
+		fprintf(fp, "  xy_upper_right: [%f, %f]\n", s_glyphInfo[i].xy_upper_right.x, s_glyphInfo[i].xy_upper_right.y);
+		fprintf(fp, "  uv_lower_left: [%f, %f]\n", s_glyphInfo[i].uv_lower_left.x, s_glyphInfo[i].uv_lower_left.y);
+		fprintf(fp, "  uv_upper_right: [%f, %f]\n", s_glyphInfo[i].uv_upper_right.x, s_glyphInfo[i].uv_upper_right.y);
+		fprintf(fp, "  advance: [%f, %f]\n", s_glyphInfo[i].advance.x, s_glyphInfo[i].advance.y);
+	}
+
+	// dump kerning table
+	fprintf(fp, "kerning:\n");
+	bool empty = true;
+	for (int i = 0; i < kNumGlyphs; ++i)
+	{
+		for (int j = 0; j < kNumGlyphs; ++j)
+		{
+			FT_Vector ftKerning;
+			FT_Get_Kerning(s_face, s_glyphInfo[i].ftGlyphIndex, s_glyphInfo[j].ftGlyphIndex, 
+						   FT_KERNING_UNFITTED, &ftKerning);
+			if (ftKerning.x != 0 || ftKerning.y != 0)
+			{
+				empty = false;
+				fprintf(fp, "-\n");
+				fprintf(fp, "  first_index: %u\n", s_glyphInfo[i].ftGlyphIndex);
+				fprintf(fp, "  second_index: %u\n", s_glyphInfo[j].ftGlyphIndex);
+				fprintf(fp, "  kerning: [%f, %f]\n", FIXED_TO_FLOAT(ftKerning.x) / line_height,
+						FIXED_TO_FLOAT(ftKerning.y) / line_height);
+			}
+		}
+	}
+	fclose(fp);
+}
+
+static void ExportLuaMetrics(const std::string& fontprefix, const std::string& fontname,
+                             int textureWidth, float line_height)
+{
+
+	// dump out metrics for each glyph into a yaml file
+	char luaFilename[512];
+	sprintf(luaFilename, "%s.lua", fontprefix.c_str());
+	FILE* fp = fopen(luaFilename, "w");
+	fprintf(fp, "-- Font Metrics for %s\n", fontname.c_str());
+    fprintf(fp, "Font {\n");
+	fprintf(fp, "    texture_width = %d,\n", textureWidth);
+	fprintf(fp, "    glyph_metrics = {\n");
+	for (int i = 0; i < kNumGlyphs; ++i)
+	{
+		fprintf(fp, "        { char_index = %u,\n", s_glyphInfo[i].ftGlyphIndex);
+		fprintf(fp, "          xy_lower_left = {%f, %f},\n", s_glyphInfo[i].xy_lower_left.x, s_glyphInfo[i].xy_lower_left.y);
+		fprintf(fp, "          xy_upper_right = {%f, %f},\n", s_glyphInfo[i].xy_upper_right.x, s_glyphInfo[i].xy_upper_right.y);
+		fprintf(fp, "          uv_lower_left = {%f, %f},\n", s_glyphInfo[i].uv_lower_left.x, s_glyphInfo[i].uv_lower_left.y);
+		fprintf(fp, "          uv_upper_right: {%f, %f},\n", s_glyphInfo[i].uv_upper_right.x, s_glyphInfo[i].uv_upper_right.y);
+		fprintf(fp, "          advance: {%f, %f} },\n", s_glyphInfo[i].advance.x, s_glyphInfo[i].advance.y);
+	}
+    fprintf(fp, "    },\n");
+
+	// dump kerning table
+	fprintf(fp, "    kerning = {\n");
+	bool empty = true;
+	for (int i = 0; i < kNumGlyphs; ++i)
+	{
+		for (int j = 0; j < kNumGlyphs; ++j)
+		{
+			FT_Vector ftKerning;
+			FT_Get_Kerning(s_face, s_glyphInfo[i].ftGlyphIndex, s_glyphInfo[j].ftGlyphIndex, 
+						   FT_KERNING_UNFITTED, &ftKerning);
+			if (ftKerning.x != 0 || ftKerning.y != 0)
+			{
+				empty = false;
+				fprintf(fp, "        { first_index = %u,\n", s_glyphInfo[i].ftGlyphIndex);
+				fprintf(fp, "          second_index = %u,\n", s_glyphInfo[j].ftGlyphIndex);
+				fprintf(fp, "          kerning = {%f, %f} },\n", FIXED_TO_FLOAT(ftKerning.x) / line_height,
+						FIXED_TO_FLOAT(ftKerning.y) / line_height);
+			}
+		}
+	}
+    fprintf(fp, "    }\n");
+    fprintf(fp, "}\n");
+	fclose(fp);
+}
+
 
 int main(int argc, char** argv)
 {
@@ -98,12 +195,22 @@ int main(int argc, char** argv)
 	int textureWidth = 512;
 	int padding = 1;
 	std::string fontname;
+
+
 	bool foundFile = false;
-	bool debug = false;
+
+    enum MetricsFileType {YamlType, LuaType};
+    MetricsFileType metricsFileType = YamlType;
+
+    enum TextureFileType {RawType, TgaType, PngType};
+    TextureFileType textureFileType = RawType;
+
 	for (int i = 1; i < argc; ++i)
 	{
 		if (strcmp(argv[i], "-h") == 0)
+        {
 			ErrorOut();
+        }
 		else if (strcmp(argv[i], "-width") == 0)
 		{
 			if ((i + 1) < argc)
@@ -137,9 +244,17 @@ int main(int argc, char** argv)
 			printf("Error : -padding should be followed by a positive integer less than 11.\n");
 			return 1;
 		}
-		else if (strcmp(argv[i], "-debug") == 0)
+		else if (strcmp(argv[i], "-png") == 0)
 		{
-			debug = true;
+			textureFileType = PngType;
+		}
+		else if (strcmp(argv[i], "-tga") == 0)
+		{
+			textureFileType = TgaType;
+		}
+		else if (strcmp(argv[i], "-lua") == 0)
+		{
+			metricsFileType = LuaType;
 		}
 		else
 		{
@@ -257,78 +372,65 @@ int main(int argc, char** argv)
 		rgbaBuffer[i*4+3] = buffer[i];
 	}   
 
-	// save it out as a targa.
-	TGA_Save("temp.tga", kGlyphTextureWidth, kGlyphTextureWidth, 32, rgbaBuffer);
-	delete [] rgbaBuffer;
+    if (textureFileType == TgaType)
+    {
+        // save it out as a targa.
+        std::string fn = fontprefix + std::string(".tga");
+        TGA_Save(fn.c_str(), kGlyphTextureWidth, kGlyphTextureWidth, 32, rgbaBuffer);
+        delete [] rgbaBuffer;
+    }
+    else if (textureFileType == PngType)
+    {
+        // save a temp targa
+        TGA_Save("temp.tga", kGlyphTextureWidth, kGlyphTextureWidth, 32, rgbaBuffer);
+        delete [] rgbaBuffer;
 
-	char cmd[512];
+        // convert the tga to a png
+        std::string fn = fontprefix + std::string(".png");
+        char cmd[512];
+        sprintf(cmd, "convert -flip temp.tga %s", fn.c_str());
+        system(cmd);
 
-	int w = kGlyphTextureWidth;
-	int i = 0;
-	while (w >= 1)
-	{
-		//printf("processing lod level %d\n", i);
+        remove("temp.tga");
+    }
+    else if (textureFileType == RawType)
+    {
+        // first save it out as a targa.
+        TGA_Save("temp.tga", kGlyphTextureWidth, kGlyphTextureWidth, 32, rgbaBuffer);
+        delete [] rgbaBuffer;
 
-		// scale the image for each mip-level
-		sprintf(cmd, "convert -scale %dx%d temp.tga temp2.tga", w, w);
-		system(cmd);
+        char cmd[512];
 
-		// stream into an intensity alpha format
-		system("stream -map ia -storage-type char temp2.tga temp.raw");
+        int w = kGlyphTextureWidth;
+        int i = 0;
+        while (w >= 1)
+        {
+            //printf("processing lod level %d\n", i);
 
-		// concat all the mip levels into a single binary file
-		sprintf(cmd, "cat temp.raw %s %s.raw", i == 0 ? ">" : ">>", fontprefix.c_str());
-		system(cmd);
+            // scale the image for each mip-level
+            sprintf(cmd, "convert -scale %dx%d temp.tga temp2.tga", w, w);
+            system(cmd);
 
-		w /= 2;
-		i += 1;
-	}
+            // stream into an intensity alpha format
+            system("stream -map ia -storage-type char temp2.tga temp.raw");
 
-	// dump out metrics for each glyph into a yaml file
-	char yamlFilename[512];
-	sprintf(yamlFilename, "%s.yaml", fontprefix.c_str());
-	FILE* fp = fopen(yamlFilename, "w");
-	fprintf(fp, "# Font Metrics for %s\n", fontname.c_str());
-	fprintf(fp, "texture_width: %d\n", textureWidth);
-	fprintf(fp, "glyph_metrics:\n");
-	for (int i = 0; i < kNumGlyphs; ++i)
-	{
-		fprintf(fp, "-\n");
-		fprintf(fp, "  char_index: %u\n", s_glyphInfo[i].ftGlyphIndex);
-		fprintf(fp, "  xy_lower_left: [%f, %f]\n", s_glyphInfo[i].xy_lower_left.x, s_glyphInfo[i].xy_lower_left.y);
-		fprintf(fp, "  xy_upper_right: [%f, %f]\n", s_glyphInfo[i].xy_upper_right.x, s_glyphInfo[i].xy_upper_right.y);
-		fprintf(fp, "  uv_lower_left: [%f, %f]\n", s_glyphInfo[i].uv_lower_left.x, s_glyphInfo[i].uv_lower_left.y);
-		fprintf(fp, "  uv_upper_right: [%f, %f]\n", s_glyphInfo[i].uv_upper_right.x, s_glyphInfo[i].uv_upper_right.y);
-		fprintf(fp, "  advance: [%f, %f]\n", s_glyphInfo[i].advance.x, s_glyphInfo[i].advance.y);
-	}
+            // concat all the mip levels into a single binary file
+            sprintf(cmd, "cat temp.raw %s %s.raw", i == 0 ? ">" : ">>", fontprefix.c_str());
+            system(cmd);
 
-	// dump kerning table
-	fprintf(fp, "kerning:\n");
-	bool empty = true;
-	for (int i = 0; i < kNumGlyphs; ++i)
-	{
-		for (int j = 0; j < kNumGlyphs; ++j)
-		{
-			FT_Vector ftKerning;
-			FT_Get_Kerning(s_face, s_glyphInfo[i].ftGlyphIndex, s_glyphInfo[j].ftGlyphIndex, 
-						   FT_KERNING_UNFITTED, &ftKerning);
-			if (ftKerning.x != 0 || ftKerning.y != 0)
-			{
-				empty = false;
-				fprintf(fp, "-\n");
-				fprintf(fp, "  first_index: %u\n", s_glyphInfo[i].ftGlyphIndex);
-				fprintf(fp, "  second_index: %u\n", s_glyphInfo[j].ftGlyphIndex);
-				fprintf(fp, "  kerning: [%f, %f]\n", FIXED_TO_FLOAT(ftKerning.x) / line_height,
-						FIXED_TO_FLOAT(ftKerning.y) / line_height);
-			}
-		}
-	}
-	fclose(fp);
+            w /= 2;
+            i += 1;
+        }
 
-	if (!debug)
-		remove("temp.tga");
-	remove("temp2.tga");
-	remove("temp.raw");
+        remove("temp.tga");
+        remove("temp2.tga");
+        remove("temp.raw");
+    }
+
+    if (metricsFileType == LuaType)
+        ExportLuaMetrics(fontprefix, fontname, textureWidth, line_height);
+    else if (metricsFileType == YamlType)
+        ExportYAMLMetrics(fontprefix, fontname, textureWidth, line_height);
 
 	return 0;
 }
