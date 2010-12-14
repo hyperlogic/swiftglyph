@@ -23,6 +23,7 @@ Command line Options
 --------------------
 
 Usage: swiftglyph [options] fontname
+
 *   -width integer : specify width of the generated texture.
 *   -padding integer : specify padding around each glyph. 
     Can help prevent glyph clipping when rendering at small sizes. 
