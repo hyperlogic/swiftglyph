@@ -18,7 +18,7 @@ module Compile
     end
 
     # check objects
-    @objects.each do |obj| 
+    @objects.each do |obj|
       raise "Bad object file #{obj}, must end in .o" unless obj.split('.')[1] == 'o'
     end
     @object_bases = @objects.map {|obj| File.basename(obj).split('.')[0]}
