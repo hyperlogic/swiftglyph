@@ -300,7 +300,7 @@ int main(int argc, char** argv)
     const int kGlyphPixelBorder = padding;
 
     // allocate & clear the render buffer
-    unsigned char buffer[kBufferSize];
+    unsigned char* buffer = new unsigned char[kBufferSize];
     memset(buffer, 0, kBufferSize);
 
     int pixels = kGlyphWidth - (2 * kGlyphPixelBorder);
@@ -373,6 +373,8 @@ int main(int argc, char** argv)
         rgbaBuffer[i*4+2] = 255;
         rgbaBuffer[i*4+3] = buffer[i];
     }
+
+    delete [] buffer;
 
     if (textureFileType == TgaType)
     {
