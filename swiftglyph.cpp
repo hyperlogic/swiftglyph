@@ -393,7 +393,7 @@ int main(int argc, char** argv)
         std::string fn = fontprefix + std::string(".png");
         char cmd[512];
         //sprintf(cmd, "sips -s format png temp.tga --out %s", fn.c_str());
-        sprintf(cmd, "magick convert temp.tga %s", fn.c_str());
+        sprintf(cmd, "magick convert -flip temp.tga %s", fn.c_str());
         system(cmd);
 
         remove("temp.tga");
@@ -413,9 +413,9 @@ int main(int argc, char** argv)
             printf("processing lod level %d\n", i);
 
             // scale the image for each mip-level
-            // use sips instead of imagemagick because imagemagick has many bugs.
+            // use magick instead of sips (because sips is only available on macos)
             //sprintf(cmd, "sips -s format tga --resampleWidth %d --flip vertical temp.tga --out temp2.tga", w);
-            sprintf(cmd, "magick convert -scale %dx%d temp.tga temp2.tga", w, w);
+            sprintf(cmd, "magick convert -flip -scale %dx%d temp.tga temp2.tga", w, w);
             system(cmd);
 
             // stream into an intensity alpha format
