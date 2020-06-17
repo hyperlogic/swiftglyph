@@ -189,6 +189,55 @@ static void ExportLuaMetrics(const std::string& fontprefix, const std::string& f
     fclose(fp);
 }
 
+static void ExportJSONMetrics(const std::string& fontprefix, const std::string& fontname,
+                              int textureWidth, float line_height)
+{
+
+    // dump out metrics for each glyph into a yaml file
+    char luaFilename[512];
+    sprintf(luaFilename, "%s.json", fontprefix.c_str());
+    FILE* fp = fopen(luaFilename, "w");
+    fprintf(fp, "{\n");
+    fprintf(fp, "    \"texture_width\": %d,\n", textureWidth);
+    fprintf(fp, "    \"glyph_metrics\": {\n");
+    for (int i = 0; i < kNumGlyphs; ++i)
+    {
+        fprintf(fp, "        \"%u\": {\n", s_glyphInfo[i].ascii_char);
+        fprintf(fp, "            \"ascii_index\": %u,\n", s_glyphInfo[i].ascii_char);
+        fprintf(fp, "            \"xy_lower_left\": [%f, %f],\n", s_glyphInfo[i].xy_lower_left.x, s_glyphInfo[i].xy_lower_left.y);
+        fprintf(fp, "            \"xy_upper_right\": [%f, %f],\n", s_glyphInfo[i].xy_upper_right.x, s_glyphInfo[i].xy_upper_right.y);
+        fprintf(fp, "            \"uv_lower_left\": [%f, %f],\n", s_glyphInfo[i].uv_lower_left.x, s_glyphInfo[i].uv_lower_left.y);
+        fprintf(fp, "            \"uv_upper_right\": [%f, %f],\n", s_glyphInfo[i].uv_upper_right.x, s_glyphInfo[i].uv_upper_right.y);
+        fprintf(fp, "            \"advance\": [%f, %f]\n", s_glyphInfo[i].advance.x, s_glyphInfo[i].advance.y);
+        fprintf(fp, "        }%s\n", (i == kNumGlyphs - 1) ? "" : ",");
+    }
+    fprintf(fp, "    },\n");
+
+    // dump kerning table
+    fprintf(fp, "    \"kerning\": {\n");
+    bool empty = true;
+    for (int i = 0; i < kNumGlyphs; ++i)
+    {
+        for (int j = 0; j < kNumGlyphs; ++j)
+        {
+            FT_Vector ftKerning;
+            FT_Get_Kerning(s_face, s_glyphInfo[i].ftGlyphIndex, s_glyphInfo[j].ftGlyphIndex,
+                           FT_KERNING_UNFITTED, &ftKerning);
+            if (ftKerning.x != 0 || ftKerning.y != 0)
+            {
+                empty = false;
+                fprintf(fp, "        {\n");
+                fprintf(fp, "            \"first_char\" = %u,\n", s_glyphInfo[i].ascii_char);
+                fprintf(fp, "            \"second_char\" = %u,\n", s_glyphInfo[j].ascii_char);
+                fprintf(fp, "            \"kerning\" = {%f, %f}\n", FIXED_TO_FLOAT(ftKerning.x) / line_height, FIXED_TO_FLOAT(ftKerning.y) / line_height);
+                fprintf(fp, "        }%s\n", (i == kNumGlyphs - 1 && j == kNumGlyphs - 1) ? "" : ",");
+            }
+        }
+    }
+    fprintf(fp, "    }\n");
+    fprintf(fp, "}\n");
+    fclose(fp);
+}
 
 int main(int argc, char** argv)
 {
@@ -200,7 +249,7 @@ int main(int argc, char** argv)
 
     bool foundFile = false;
 
-    enum MetricsFileType {YamlType, LuaType};
+    enum MetricsFileType {YamlType, LuaType, JsonType};
     MetricsFileType metricsFileType = YamlType;
 
     enum TextureFileType {RawType, TgaType, PngType};
@@ -256,6 +305,10 @@ int main(int argc, char** argv)
         else if (strcmp(argv[i], "-lua") == 0)
         {
             metricsFileType = LuaType;
+        }
+        else if (strcmp(argv[i], "-json") == 0)
+        {
+            metricsFileType = JsonType;
         }
         else
         {
@@ -436,9 +489,17 @@ int main(int argc, char** argv)
     }
 
     if (metricsFileType == LuaType)
+    {
         ExportLuaMetrics(fontprefix, fontname, textureWidth, line_height);
+    }
     else if (metricsFileType == YamlType)
+    {
         ExportYAMLMetrics(fontprefix, fontname, textureWidth, line_height);
+    }
+    else if (metricsFileType == JsonType)
+    {
+        ExportJSONMetrics(fontprefix, fontname, textureWidth, line_height);
+    }
 
     return 0;
 }
