@@ -90,8 +90,10 @@ void ErrorOut()
     printf("        -padding integer : specify padding around each glyph. Can help prevent\n");
     printf("                           glyph clipping when rendering at small sizes.\n");
     printf("        -lua             : will output metrics file as a lua table instead of a yaml file.\n");
+    printf("        -json            : will output metrics file as a json object file instead of yaml file.\n");
     printf("        -png             : will output texture as a png instead of a raw file.\n");
     printf("        -tga             : will output texture as a tga instead of a raw file.\n");
+    printf("        -vflip           : texture coords will be flipped on v-axis LEGACY setting\n");
     exit(1);
 }
 
@@ -244,8 +246,8 @@ int main(int argc, char** argv)
     // check options
     int textureWidth = 512;
     int padding = 1;
+    bool vflip = false;
     std::string fontname;
-
 
     bool foundFile = false;
 
@@ -309,6 +311,10 @@ int main(int argc, char** argv)
         else if (strcmp(argv[i], "-json") == 0)
         {
             metricsFileType = JsonType;
+        }
+        else if (strcmp(argv[i], "-vflip") == 0)
+        {
+            vflip = true;
         }
         else
         {
@@ -405,8 +411,17 @@ int main(int argc, char** argv)
         Vec2 uv_size = (glyph_bitmap_size + (2.0f * kGlyphPixelBorder)) / kGlyphTextureWidth;
         Vec2 upper_left = Vec2(x, y) / kGlyphTextureWidth;
         Vec2 lower_right = upper_left + uv_size;
-        s_glyphInfo[i].uv_lower_left = Vec2(upper_left.x, lower_right.y);
-        s_glyphInfo[i].uv_upper_right = Vec2(lower_right.x, upper_left.y);
+
+        if (vflip)
+        {
+            s_glyphInfo[i].uv_lower_left = Vec2(upper_left.x, lower_right.y);
+            s_glyphInfo[i].uv_upper_right = Vec2(lower_right.x, upper_left.y);
+        }
+        else
+        {
+            s_glyphInfo[i].uv_lower_left = Vec2(upper_left.x, 1.0f - lower_right.y);
+            s_glyphInfo[i].uv_upper_right = Vec2(lower_right.x, 1.0f - upper_left.y);
+        }
 
         s_glyphInfo[i].advance.x = FIXED_TO_FLOAT(s_face->glyph->metrics.horiAdvance) / line_height;
         s_glyphInfo[i].advance.y = 0.0f;
@@ -466,8 +481,6 @@ int main(int argc, char** argv)
             printf("processing lod level %d\n", i);
 
             // scale the image for each mip-level
-            // use magick instead of sips (because sips is only available on macos)
-            //sprintf(cmd, "sips -s format tga --resampleWidth %d --flip vertical temp.tga --out temp2.tga", w);
             sprintf(cmd, "magick convert -scale %dx%d temp.tga temp2.tga", w, w);
             system(cmd);
 
