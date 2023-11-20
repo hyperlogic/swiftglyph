@@ -461,7 +461,7 @@ int main(int argc, char** argv)
         std::string fn = fontprefix + std::string(".png");
         char cmd[512];
         //sprintf(cmd, "sips -s format png temp.tga --out %s", fn.c_str());
-        sprintf(cmd, "magick convert temp.tga %s", fn.c_str());
+        sprintf(cmd, "magick convert -flip temp.tga %s", fn.c_str());
         system(cmd);
 
         remove("temp.tga");
